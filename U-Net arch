@@ -1,0 +1,158 @@
+import tensorflow as tf
+import numpy as np
+import matplotlib.pyplot as plt
+image_path = './image.png'
+image = tf.io.read_file(image_path)
+image = tf.image.decode_jpeg(image, channels=3)
+image = tf.image.resize(image, [1024, 1024])  # Resize to a fixed size
+
+mask_path = "./maker.png"
+mask = tf.io.read_file(mask_path)
+mask = tf.image.decode_png(mask, channels=1)
+# mask=tf.image.rot90(mask,1)
+mask = tf.image.resize(mask, [1024, 1024])  
+
+# Display the image and mask
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 2, 1)
+plt.imshow(image.numpy().astype("uint8"))
+plt.title("Image")
+plt.axis('off')
+plt.subplot(1, 2, 2)
+plt.imshow(mask[:, :, 0], cmap='gray')
+plt.title("Mask")
+plt.axis('off')
+plt.show()
+
+def random_flip(image, mask):
+    image = tf.image.random_flip_left_right(image)
+    mask = tf.image.random_flip_left_right(mask)
+    return image, mask
+
+def random_rotation(image, mask):
+    k = np.random.randint(1, 4)
+    image = tf.image.rot90(image, k=k)
+    mask = tf.image.rot90(mask, k=k)
+    return image, mask
+
+def random_crop(image, mask):
+    stacked_image = tf.concat([image, mask], axis=-1)
+    cropped_image = tf.image.random_crop(stacked_image, size=[1024, 1024, 4])
+    return cropped_image[:, :, :3], cropped_image[:, :, 3:]
+
+batch_size = 8
+images = tf.stack([image] * batch_size)
+masks = tf.stack([mask] * batch_size)
+
+augmented_images = []
+augmented_masks = []
+for img, msk in zip(images, masks):
+    img, msk = random_flip(img, msk)
+    img, msk = random_rotation(img, msk)
+    img, msk = random_crop(img, msk)
+    augmented_images.append(img)
+    augmented_masks.append(msk)
+
+# Convert to tensor
+augmented_images = tf.stack(augmented_images)
+augmented_masks = tf.stack(augmented_masks)
+
+plt.figure(figsize=(10, 10))
+for i in range(batch_size):
+    plt.subplot(4, 4, 2*i + 1)
+    plt.imshow(augmented_images[i].numpy().astype("uint8"))
+    plt.axis('off')
+    plt.subplot(4, 4, 2*i + 2)
+    plt.imshow(augmented_masks[i][:, :, 0], cmap='gray')
+    plt.axis('off')
+plt.show()
+
+def unet_model(output_channels):
+    inputs = tf.keras.layers.Input(shape=[1024, 1024, 3])
+
+    # Encoder
+    c1 = tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same')(inputs)
+    c1 = tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same')(c1)
+    p1 = tf.keras.layers.MaxPooling2D((2, 2))(c1)
+
+    c2 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(p1)
+    c2 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(c2)
+    p2 = tf.keras.layers.MaxPooling2D((2, 2))(c2)
+
+    c3 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(p2)
+    c3 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(c3)
+    p3 = tf.keras.layers.MaxPooling2D((2, 2))(c3)
+
+    c4 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(p3)
+    c4 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(c4)
+    p4 = tf.keras.layers.MaxPooling2D((2, 2))(c4)
+
+    c5 = tf.keras.layers.Conv2D(1024, (3, 3), activation='relu', padding='same')(p4)
+    c5 = tf.keras.layers.Conv2D(1024, (3, 3), activation='relu', padding='same')(c5)
+
+    # Decoder
+    u6 = tf.keras.layers.Conv2DTranspose(512, (2, 2), strides=(2, 2), padding='same')(c5)
+    u6 = tf.keras.layers.concatenate([u6, c4])
+    c6 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(u6)
+    c6 = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(c6)
+
+    u7 = tf.keras.layers.Conv2DTranspose(256, (2, 2), strides=(2, 2), padding='same')(c6)
+    u7 = tf.keras.layers.concatenate([u7, c3])
+    c7 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(u7)
+    c7 = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(c7)
+
+    u8 = tf.keras.layers.Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same')(c7)
+    u8 = tf.keras.layers.concatenate([u8, c2])
+    c8 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(u8)
+    c8 = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(c8)
+
+    u9 = tf.keras.layers.Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same')(c8)
+    u9 = tf.keras.layers.concatenate([u9, c1])
+    c9 = tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same')(u9)
+    c9 = tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same')(c9)
+
+    outputs = tf.keras.layers.Conv2D(output_channels, (1, 1), activation='sigmoid')(c9)
+
+    model = tf.keras.Model(inputs=[inputs], outputs=[outputs])
+    return model
+
+# Create the model
+model = unet_model(output_channels=1)
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.summary()
+
+# Convert masks to float32
+augmented_masks = tf.cast(augmented_masks, tf.float32)
+
+# Train the model
+EPOCHS = 10
+history = model.fit(augmented_images, augmented_masks, epochs=EPOCHS, batch_size=3)     #Batch_Size depend on your local machine computational power
+
+print(  "Model Accuracy:", history.history['accuracy'][-1])
+print("Model Loss:", history.history['loss'][-1])
+
+# Save the model
+model.save('hair_segmentation_model.h5')
+
+# Load a new image
+new_image_path = '/content/image.png'
+new_image = tf.io.read_file(new_image_path)
+new_image = tf.image.decode_jpeg(new_image, channels=3)
+new_image = tf.image.resize(new_image, [224, 224])
+new_image = tf.expand_dims(new_image, axis=0)  # Add batch dimension
+
+# Predict the mask
+predicted_mask = model.predict(new_image)
+predicted_mask = tf.squeeze(predicted_mask, axis=0)  # Remove batch dimension
+
+# Display the new image and predicted mask
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 2, 1)
+plt.imshow(new_image[0].numpy().astype("uint8"))
+plt.title("New Image")
+plt.axis('off')
+plt.subplot(1, 2, 2)
+plt.imshow(predicted_mask[:, :, 0], cmap='gray')
+plt.title("Predicted Mask")
+plt.axis('off')
+plt.show()
