@@ -1,4 +1,4 @@
-To commence, you must install the Remove library. To do this, enter the following command: **"!pip install remove."** Once the library is installed, you can use it to remove objects from an image.
+To commence, you must install the Remove library. To do this, enter the following command: **"!pip install rembg."** Once the library is installed, you can use it to remove objects from an image.
 
 we simply pass the image to remove library abd gives a updated image and we store it.
 
