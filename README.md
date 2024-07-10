@@ -1,12 +1,5 @@
-To commence, you must install the Remove library. To do this, enter the following command: **"!pip install rembg."** Once the library is installed, you can use it to remove objects from an image.
+This project demonstrates two methods for removing objects from an image. In the first method, we use the Remove library to simply pass the image to the library and store the updated image. In the second method, we take a single image and derive multiple images from it by rotating, moving, cropping, and mirroring the original image. We then encode the image from 64 to 1024 and make adjustments in kernel neural networks. Finally, we train the module based on that data and use it to predict the result.
 
-we simply pass the image to remove library and gives a updated image and we store it.
+To use the first method, you must install the Remove library using the command **"!pip install rembg."** Once the library is installed, you can use it to remove objects from an image.
 
-It is a simple way but we can do it in more professional way by argumented the image and then train it on U-Net architecture of segmentation method.
-the code is in U-Net arch file.
-
-We took a single image and derived multiple images from it. We accomplished this by rotating, moving, cropping, and mirroring the original image.
-
-Then encode the image from 64 to 1024 and make adjustment in kernal neural networks.
-
-Then train the module based on that data and epoch it and use it to predit it.
+To use the second method, you can find the code in the U-Net arch file.
