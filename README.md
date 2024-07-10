@@ -1,6 +1,6 @@
 To commence, you must install the Remove library. To do this, enter the following command: **"!pip install rembg."** Once the library is installed, you can use it to remove objects from an image.
 
-we simply pass the image to remove library abd gives a updated image and we store it.
+we simply pass the image to remove library and gives a updated image and we store it.
 
 It is a simple way but we can do it in more professional way by argumented the image and then train it on U-Net architecture of segmentation method.
 the code is in U-Net arch file.
